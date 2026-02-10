@@ -26,6 +26,7 @@
         .signed .checkbox { border-color: #4caf50; background: #4caf50; color: white; }
         
         .name { flex: 1; font-size: 15px; font-weight: 500; }
+        .email { font-size: 12px; color: #666; margin-top: 3px; }
         .status {
             font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px;
             margin-left: 10px; text-transform: uppercase; letter-spacing: 0.5px;
@@ -50,38 +51,50 @@
             display: inline-block; background: #2c3e50; color: white; padding: 4px 10px;
             border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px;
         }
+        .email-badge {
+            display: inline-block; background: #2196F3; color: white; padding: 4px 10px;
+            border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px;
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h3>Signature Checklist <span id="counter" class="signature-count">0/0</span></h3>
+        <h3>Signature Checklist 
+            <span id="counter" class="signature-count">0/0</span>
+            <span id="email-counter" class="email-badge">0 emails</span>
+        </h3>
         <div id="checklist-container">
             <div class="empty-state">📋<br>Select names in the form above<br><small>Checklist will appear here automatically</small></div>
         </div>
-        <div class="progress"><span id="progress-text">No signatures selected</span></div>
+        <div class="progress">
+            <span id="progress-text">No signatures selected</span><br>
+            <span id="email-text" style="font-size: 12px; color: #666;">No emails selected</span>
+        </div>
         <div id="completion-banner" class="completion-banner">✅ ALL SIGNATURES COMPLETE!<br><small>Approver will be notified</small></div>
     </div>
 
 <script>
 // ===== CONFIGURATION =====
 const PEOPLE = [
-    { checkboxId: 'input_280_0', name: 'Rowan Isaacs', signatureId: 'worker1' },
-    { checkboxId: 'input_280_1', name: 'Mark Hair', signatureId: 'worker2' },
-    { checkboxId: 'input_280_2', name: 'Sam Mitchell', signatureId: 'worker3' },
-    { checkboxId: 'input_280_3', name: 'Alex Mclean', signatureId: 'worker4' },
-    { checkboxId: 'input_280_4', name: 'Rai Samson', signatureId: 'worker5' },
-    { checkboxId: 'input_280_5', name: 'Darren Taylor', signatureId: 'worker6' },
-    { checkboxId: 'input_280_6', name: 'Ty Wilson', signatureId: 'worker7' },
-    { checkboxId: 'input_280_7', name: 'Kristian', signatureId: 'worker8' },
-    { checkboxId: 'input_280_8', name: 'Graham Wickham', signatureId: 'worker9' },
-    { checkboxId: 'input_280_9', name: 'Mike Rono', signatureId: 'worker10' },
-    { checkboxId: 'input_280_10', name: 'Dale Roulston', signatureId: 'worker11' },
-    { checkboxId: 'input_280_11', name: 'John Clark', signatureId: 'worker12' }
+    { checkboxId: 'input_280_0', name: 'Rowan Isaacs', signatureId: 'worker1', email: 'darcievaughan+rowan@gmail.com' },
+    { checkboxId: 'input_280_1', name: 'Mark Hair', signatureId: 'worker2', email: 'darcievaughan+mark@gmail.com' },
+    { checkboxId: 'input_280_2', name: 'Sam Mitchell', signatureId: 'worker3', email: 'darcievaughan+sam@gmail.com' },
+    { checkboxId: 'input_280_3', name: 'Alex Mclean', signatureId: 'worker4', email: 'alex@company.com' },
+    { checkboxId: 'input_280_4', name: 'Rai Samson', signatureId: 'worker5', email: 'rai@company.com' },
+    { checkboxId: 'input_280_5', name: 'Darren Taylor', signatureId: 'worker6', email: 'darren@company.com' },
+    { checkboxId: 'input_280_6', name: 'Ty Wilson', signatureId: 'worker7', email: 'ty@company.com' },
+    { checkboxId: 'input_280_7', name: 'Kristian', signatureId: 'worker8', email: 'kristian@company.com' },
+    { checkboxId: 'input_280_8', name: 'Graham Wickham', signatureId: 'worker9', email: 'graham@company.com' },
+    { checkboxId: 'input_280_9', name: 'Mike Rono', signatureId: 'worker10', email: 'mike@company.com' },
+    { checkboxId: 'input_280_10', name: 'Dale Roulston', signatureId: 'worker11', email: 'dale@company.com' },
+    { checkboxId: 'input_280_11', name: 'John Clark', signatureId: 'worker12', email: 'john@company.com' }
 ];
 
-const COMPLETION_FIELD_ID = 'input_361';
-const COMPLETION_FIELD_NAME = 'signaturesComplete';
+// JotForm field IDs
+const COMPLETION_FIELD_ID = 'input_361'; // signaturesComplete field
+const EMAIL_LIST_FIELD_ID = 'input_363'; // Email list field (short text)
+const EMAIL_LIST_FIELD_NAME = 'selectedEmails'; // Field name
 
 // ===== CORE FUNCTIONS =====
 function isCheckboxSelected(checkboxId) {
@@ -119,6 +132,81 @@ function isCanvasDrawn(canvas) {
     } catch (error) { return false; }
 }
 
+// ===== NEW: Update Email List Field =====
+function updateEmailListField() {
+    try {
+        // Get selected people
+        const selectedPeople = PEOPLE.filter(person => isCheckboxSelected(person.checkboxId));
+        
+        // Extract emails
+        const emails = selectedPeople.map(person => person.email).filter(email => email);
+        
+        // Create comma-separated string
+        const emailString = emails.join(', ');
+        
+        // Find or create the email list field
+        let emailField = document.getElementById(EMAIL_LIST_FIELD_ID);
+        if (!emailField) {
+            emailField = document.querySelector(`input[name="${EMAIL_LIST_FIELD_NAME}"]`);
+        }
+        if (!emailField) {
+            emailField = document.createElement('input');
+            emailField.type = 'text';
+            emailField.id = EMAIL_LIST_FIELD_ID;
+            emailField.name = EMAIL_LIST_FIELD_NAME;
+            emailField.style.display = 'none';
+            document.body.appendChild(emailField);
+        }
+        
+        // Update the value
+        emailField.value = emailString;
+        
+        // Trigger change event for JotForm
+        const event = new Event('change', { bubbles: true });
+        emailField.dispatchEvent(event);
+        
+        // Update display
+        const emailCounter = document.getElementById('email-counter');
+        const emailText = document.getElementById('email-text');
+        
+        if (emails.length > 0) {
+            emailCounter.textContent = `${emails.length} email${emails.length > 1 ? 's' : ''}`;
+            emailText.textContent = `Emails: ${emailString}`;
+            emailText.style.color = '#2196F3';
+        } else {
+            emailCounter.textContent = '0 emails';
+            emailText.textContent = 'No emails selected';
+            emailText.style.color = '#666';
+        }
+        
+        console.log(`Updated email list (${EMAIL_LIST_FIELD_ID}): ${emailString}`);
+        return emailString;
+        
+    } catch (error) {
+        console.error('Error updating email list field:', error);
+        return '';
+    }
+}
+
+function updateCompletionField(value) {
+    try {
+        let field = document.getElementById(COMPLETION_FIELD_ID);
+        if (!field) field = document.querySelector(`input[name="signaturesComplete"]`);
+        if (!field) {
+            field = document.createElement('input');
+            field.type = 'hidden';
+            field.id = COMPLETION_FIELD_ID;
+            field.name = 'signaturesComplete';
+            document.body.appendChild(field);
+        }
+        field.value = value;
+        const event = new Event('change', { bubbles: true });
+        field.dispatchEvent(event);
+        console.log(`Updated signaturesComplete to: ${value}`);
+    } catch (error) { console.error('Error updating completion field:', error); }
+}
+
+// ===== Main Update Function =====
 function updateChecklist() {
     const selectedPeople = PEOPLE.filter(person => isCheckboxSelected(person.checkboxId));
     const container = document.getElementById('checklist-container');
@@ -132,6 +220,7 @@ function updateChecklist() {
         container.innerHTML = '<div class="empty-state">📋<br>Select names in the form above<br><small>Checklist will appear here automatically</small></div>';
         progressText.textContent = 'No signatures selected';
         updateCompletionField('no');
+        updateEmailListField();
         return;
     }
     
@@ -143,7 +232,10 @@ function updateChecklist() {
         if (!hasSig) allSigned = false;
         html += `<div class="checklist-item ${hasSig ? 'signed' : 'pending'}">
                     <div class="checkbox">${hasSig ? '✓' : '⋯'}</div>
-                    <div class="name">${person.name}</div>
+                    <div class="name">
+                        ${person.name}
+                        <div class="email">${person.email}</div>
+                    </div>
                     <div class="status">${hasSig ? 'SIGNED' : 'PENDING'}</div>
                 </div>`;
     });
@@ -162,29 +254,15 @@ function updateChecklist() {
         banner.classList.remove('show');
         updateCompletionField('no');
     }
-}
-
-function updateCompletionField(value) {
-    try {
-        let field = document.getElementById(COMPLETION_FIELD_ID);
-        if (!field) field = document.querySelector(`input[name="${COMPLETION_FIELD_NAME}"]`);
-        if (!field) {
-            field = document.createElement('input');
-            field.type = 'hidden';
-            field.id = COMPLETION_FIELD_ID;
-            field.name = COMPLETION_FIELD_NAME;
-            document.body.appendChild(field);
-        }
-        field.value = value;
-        const event = new Event('change', { bubbles: true });
-        field.dispatchEvent(event);
-        console.log(`Updated ${COMPLETION_FIELD_NAME} to: ${value}`);
-    } catch (error) { console.error('Error updating completion field:', error); }
+    
+    // Update email list (NEW)
+    updateEmailListField();
 }
 
 // ===== INITIALIZATION =====
 function initialize() {
     console.log('Signature Checklist Widget Loaded');
+    console.log('Monitoring emails for field:', EMAIL_LIST_FIELD_ID);
     updateChecklist();
     setInterval(updateChecklist, 1000);
     if (window.parent) {
@@ -194,6 +272,12 @@ function initialize() {
 
 document.addEventListener('DOMContentLoaded', initialize);
 window.addEventListener('beforeunload', () => clearInterval(window.checkInterval));
+
+// Debug functions
+window.getSelectedEmails = () => {
+    const selected = PEOPLE.filter(p => isCheckboxSelected(p.checkboxId));
+    return selected.map(p => p.email);
+};
 </script>
 </body>
 </html>
