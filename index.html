@@ -2,52 +2,19 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Signature Tracker</title>
+    <title></title>
     <style>
-        body { 
-            font-family: Arial; 
-            padding: 15px; 
-            background: white;
-            margin: 0;
-        }
-        #status {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            background: #f0f0f0;
-            font-size: 14px;
-        }
-        .success { background: #e8f5e9; border-left: 4px solid #4CAF50; }
-        .warning { background: #fff3e0; border-left: 4px solid #ff9800; }
-        .error { background: #ffebee; border-left: 4px solid #f44336; }
-        
-        .email-list {
-            margin-top: 15px;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 5px;
-        }
-        .email-item {
-            padding: 5px 8px;
-            margin: 3px 0;
-            background: white;
-            border-radius: 3px;
-            border-left: 3px solid #2196F3;
-        }
+        body { margin: 0; padding: 10px; font-family: Arial; }
+        .item { padding: 5px; margin: 3px 0; border-left: 3px solid #ddd; }
+        .selected { border-left-color: orange; background: #fff8e1; }
+        .email { padding: 5px; background: #f5f5f5; border-radius: 3px; margin-top: 5px; font-size: 12px; }
     </style>
 </head>
 <body>
-    <div id="status" class="warning">
-        Loading... Waiting for JotForm connection.
-    </div>
-    
-    <div id="email-list" class="email-list" style="display: none;">
-        <strong>Selected Emails:</strong>
-        <div id="emails-container"></div>
-    </div>
+    <div id="checklist"></div>
+    <div id="email" class="email"></div>
 
 <script>
-// Configuration
 const PEOPLE = [
     { checkboxId: 'input_280_0', name: 'Rowan Isaacs', signatureId: 'worker1', email: 'darcievaughan+rowan@gmail.com' },
     { checkboxId: 'input_280_1', name: 'Mark Hair', signatureId: 'worker2', email: 'darcievaughan+mark@gmail.com' },
@@ -64,129 +31,54 @@ const PEOPLE = [
 ];
 
 const EMAIL_FIELD_ID = 'input_363';
-let selectedEmails = [];
 
-// Function to access parent JotForm
-function accessJotForm() {
-    try {
-        if (!window.parent || !window.parent.document) {
-            updateStatus('Cannot access JotForm - running in isolation', 'error');
-            return null;
-        }
-        
-        const parentDoc = window.parent.document;
-        updateStatus('Connected to JotForm', 'success');
-        return parentDoc;
-        
-    } catch (error) {
-        updateStatus(`Access error: ${error.message}`, 'error');
-        return null;
-    }
-}
-
-// Check which checkboxes are selected
-function checkSelectedPeople(parentDoc) {
+function update() {
     const selected = [];
     
     PEOPLE.forEach(person => {
         try {
-            const checkbox = parentDoc.getElementById(person.checkboxId);
-            if (checkbox && checkbox.checked) {
-                selected.push(person);
-                
-                // Show signature field if it exists
-                const sigField = parentDoc.getElementById(person.signatureId);
-                if (sigField) {
-                    sigField.style.display = 'block';
+            if (window.parent && window.parent.document) {
+                const checkbox = window.parent.document.getElementById(person.checkboxId);
+                if (checkbox && checkbox.checked) {
+                    selected.push(person);
+                    
+                    const sigField = window.parent.document.getElementById(person.signatureId);
+                    if (sigField) sigField.style.display = 'block';
                 }
             }
-        } catch (e) {
-            // Silently continue
-        }
+        } catch(e) {}
     });
     
-    return selected;
-}
-
-// Update JotForm email field
-function updateEmailField(parentDoc, emails) {
-    try {
-        const emailString = emails.join(', ');
-        const emailField = parentDoc.getElementById(EMAIL_FIELD_ID);
-        
-        if (emailField) {
-            emailField.value = emailString;
-            // Trigger change event
-            const event = new Event('change', { bubbles: true });
-            emailField.dispatchEvent(event);
-            return true;
-        }
-        return false;
-    } catch (error) {
-        return false;
-    }
-}
-
-// Update display
-function updateDisplay(selectedPeople) {
-    const status = document.getElementById('status');
-    const emailList = document.getElementById('email-list');
-    const emailsContainer = document.getElementById('emails-container');
-    
-    selectedEmails = selectedPeople.map(p => p.email);
-    
-    if (selectedPeople.length > 0) {
-        status.className = 'success';
-        status.innerHTML = `<strong>${selectedPeople.length} people selected</strong>`;
-        
-        emailList.style.display = 'block';
-        emailsContainer.innerHTML = selectedPeople.map(p => 
-            `<div class="email-item">${p.name} - ${p.email}</div>`
-        ).join('');
+    // Update checklist
+    const checklist = document.getElementById('checklist');
+    if (selected.length === 0) {
+        checklist.innerHTML = '<div class="item">Select names above</div>';
     } else {
-        status.className = 'warning';
-        status.innerHTML = 'No names selected yet';
-        emailList.style.display = 'none';
+        checklist.innerHTML = selected.map(p => 
+            `<div class="item selected">${p.name}</div>`
+        ).join('');
     }
-}
-
-function updateStatus(message, type = 'info') {
-    const status = document.getElementById('status');
-    status.className = type;
-    status.innerHTML = message;
-}
-
-// Main check function
-function performCheck() {
-    const parentDoc = accessJotForm();
-    if (!parentDoc) return;
     
-    const selectedPeople = checkSelectedPeople(parentDoc);
-    updateDisplay(selectedPeople);
+    // Update email display
+    const emails = selected.map(p => p.email);
+    document.getElementById('email').textContent = emails.join(', ') || 'No emails';
     
     // Update JotForm field
-    const success = updateEmailField(parentDoc, selectedPeople.map(p => p.email));
-    if (success && selectedPeople.length > 0) {
-        console.log(`Updated JotForm field with ${selectedPeople.length} emails`);
-    }
-}
-
-// Initialize
-function initialize() {
-    updateStatus('Starting...');
-    
-    // Check immediately
-    performCheck();
-    
-    // Check every second
-    setInterval(performCheck, 1000);
-    
-    // Also check on window focus
-    window.addEventListener('focus', performCheck);
+    try {
+        if (window.parent && window.parent.document) {
+            const field = window.parent.document.getElementById(EMAIL_FIELD_ID);
+            if (field) {
+                field.value = emails.join(', ');
+                const event = new Event('change', { bubbles: true });
+                field.dispatchEvent(event);
+            }
+        }
+    } catch(e) {}
 }
 
 // Start
-document.addEventListener('DOMContentLoaded', initialize);
+setInterval(update, 1000);
+update();
 </script>
 </body>
 </html>
