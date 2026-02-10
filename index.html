@@ -5,224 +5,360 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signature Checklist</title>
     <style>
-        body { font-family: Arial; padding: 15px; background: white; }
-        h3 { color: #333; margin-bottom: 15px; }
-        .item { padding: 10px; margin: 5px 0; border-left: 4px solid #ddd; }
-        .selected { border-left-color: #ff9800; background: #fff3e0; }
-        .signed { border-left-color: #4CAF50; background: #e8f5e9; }
-        .complete { background: #4CAF50; color: white; padding: 10px; border-radius: 5px; margin-top: 10px; display: none; }
-        .complete.show { display: block; }
-        .debug { background: #f5f5f5; padding: 10px; margin-top: 10px; border-radius: 5px; font-size: 12px; }
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 15px; 
+            background: white; 
+            margin: 0; 
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h3 { 
+            color: #2c3e50; 
+            margin-bottom: 20px; 
+            padding-bottom: 10px; 
+            border-bottom: 2px solid #ecf0f1; 
+        }
+        .checklist-item {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .checklist-item.selected {
+            background: #fff3e0;
+            border-color: #ff9800;
+        }
+        .checklist-item.signed {
+            background: #e8f5e9;
+            border-color: #4CAF50;
+        }
+        .checkbox-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .selected .checkbox-icon {
+            background: #ff9800;
+            color: white;
+        }
+        .signed .checkbox-icon {
+            background: #4CAF50;
+            color: white;
+        }
+        .name {
+            flex: 1;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        .email {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+        .status {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+        }
+        .selected .status {
+            background: #ff9800;
+            color: white;
+        }
+        .signed .status {
+            background: #4CAF50;
+            color: white;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 30px 20px;
+            color: #7f8c8d;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #e9ecef;
+        }
+        .debug-panel {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+        .debug-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
     </style>
 </head>
 <body>
-    <h3>Signature Checklist</h3>
-    <div id="checklist"></div>
-    <div id="complete" class="complete">✅ ALL SIGNATURES COMPLETE</div>
-    <div class="debug">
-        <div id="debug">Loading...</div>
-        <button onclick="forceUpdate()" style="margin-top: 5px; padding: 5px 10px;">Force Update</button>
+    <div class="container">
+        <h3>Signature Checklist</h3>
+        <div id="checklist-container">
+            <div class="empty-state">
+                <div style="font-size: 24px; margin-bottom: 10px;">📋</div>
+                <div>Select names in the JotForm above</div>
+                <div style="font-size: 11px; margin-top: 5px; color: #95a5a6;">Checklist will update automatically</div>
+            </div>
+        </div>
+        
+        <div class="debug-panel">
+            <div class="debug-title">Debug Information</div>
+            <div id="debug-output">Initializing...</div>
+            <button onclick="forceCheck()">Force Check Now</button>
+            <button onclick="testEmailUpdate()" style="background: #4CAF50; margin-left: 5px;">Test Email Field</button>
+        </div>
     </div>
 
 <script>
-// JotForm field IDs
+// ===== CONFIGURATION =====
+const PEOPLE = [
+    { name: 'Rowan Isaacs', email: 'darcievaughan+rowan@gmail.com', signature: 'worker1' },
+    { name: 'Mark Hair', email: 'darcievaughan+mark@gmail.com', signature: 'worker2' },
+    { name: 'Sam Mitchell', email: 'darcievaughan+sam@gmail.com', signature: 'worker3' },
+    { name: 'Alex Mclean', email: 'darcievaughan+alex@gmail.com', signature: 'worker4' },
+    { name: 'Rai Samson', email: 'darcievaughan+rai@gmail.com', signature: 'worker5' },
+    { name: 'Darren Taylor', email: 'darcievaughan+darren@gmail.com', signature: 'worker6' },
+    { name: 'Ty Wilson', email: 'darcievaughan+ty@gmail.com', signature: 'worker7' },
+    { name: 'Kristian', email: 'darcievaughan+kristian@gmail.com', signature: 'worker8' },
+    { name: 'Graham Wickham', email: 'darcievaughan+graham@gmail.com', signature: 'worker9' },
+    { name: 'Mike Rono', email: 'darcievaughan+mike@gmail.com', signature: 'worker10' },
+    { name: 'Dale Roulston', email: 'darcievaughan+dale@gmail.com', signature: 'worker11' },
+    { name: 'John Clark', email: 'darcievaughan+john@gmail.com', signature: 'worker12' }
+];
+
 const EMAIL_FIELD_ID = 'input_363'; // Your email list field
 const COMPLETE_FIELD_ID = 'input_361'; // Your completion field
 
-// Your people with TEST emails
-const PEOPLE = [
-    { name: 'Rowan Isaacs', email: 'darcievaughan+rowan@gmail.com' },
-    { name: 'Mark Hair', email: 'darcievaughan+mark@gmail.com' },
-    { name: 'Sam Mitchell', email: 'darcievaughan+sam@gmail.com' },
-    { name: 'Alex Mclean', email: 'darcievaughan+alex@gmail.com' },
-    { name: 'Rai Samson', email: 'darcievaughan+rai@gmail.com' },
-    { name: 'Darren Taylor', email: 'darcievaughan+darren@gmail.com' },
-    { name: 'Ty Wilson', email: 'darcievaughan+ty@gmail.com' },
-    { name: 'Kristian', email: 'darcievaughan+kristian@gmail.com' },
-    { name: 'Graham Wickham', email: 'darcievaughan+graham@gmail.com' },
-    { name: 'Mike Rono', email: 'darcievaughan+mike@gmail.com' },
-    { name: 'Dale Roulston', email: 'darcievaughan+dale@gmail.com' },
-    { name: 'John Clark', email: 'darcievaughan+john@gmail.com' }
-];
+let debugMessages = [];
 
-// Find checkboxes in JotForm - THEY ARE DIFFERENT!
-function findCheckboxes() {
-    const checkboxes = [];
-    
-    // JotForm checkbox IDs are NOT input_280_0, etc.
-    // They look like: input_3_0, input_3_1, etc.
-    // Let's find ALL checkboxes on the page
-    const allInputs = document.querySelectorAll('input[type="checkbox"]');
-    
-    allInputs.forEach((cb, index) => {
-        // Get the checkbox label/text to identify it
-        let label = '';
-        const parent = cb.closest('li, .form-line, .form-field');
-        if (parent) {
-            const labels = parent.querySelectorAll('label');
-            labels.forEach(l => {
-                if (l.textContent.includes('Rowan') || l.textContent.includes('Mark') || 
-                    l.textContent.includes('Sam') || l.textContent.includes('Alex') ||
-                    l.textContent.includes('Rai') || l.textContent.includes('Darren') ||
-                    l.textContent.includes('Ty') || l.textContent.includes('Kristian') ||
-                    l.textContent.includes('Graham') || l.textContent.includes('Mike') ||
-                    l.textContent.includes('Dale') || l.textContent.includes('John')) {
-                    label = l.textContent.trim();
+// ===== DEBUG FUNCTIONS =====
+function addDebug(message) {
+    debugMessages.push(`${new Date().toLocaleTimeString()}: ${message}`);
+    if (debugMessages.length > 5) debugMessages.shift();
+    updateDebugDisplay();
+}
+
+function updateDebugDisplay() {
+    const output = document.getElementById('debug-output');
+    if (output) {
+        output.innerHTML = debugMessages.join('<br>');
+    }
+}
+
+// ===== MAIN FUNCTION: CHECK PARENT JOTFORM =====
+function checkParentJotForm() {
+    try {
+        addDebug('Checking parent JotForm...');
+        
+        // Access the PARENT window (the actual JotForm)
+        if (!window.parent || !window.parent.document) {
+            addDebug('ERROR: Cannot access parent window');
+            return { selected: [], emails: [] };
+        }
+        
+        const parentDoc = window.parent.document;
+        const selectedPeople = [];
+        const selectedEmails = [];
+        
+        // Look for checkboxes in the PARENT document
+        const checkboxes = parentDoc.querySelectorAll('input[type="checkbox"]');
+        addDebug(`Found ${checkboxes.length} checkboxes in parent`);
+        
+        // Try to match checkboxes to our people
+        PEOPLE.forEach((person, index) => {
+            let found = false;
+            
+            // Method 1: Check by looking at nearby labels
+            checkboxes.forEach(checkbox => {
+                // Get parent container
+                const container = checkbox.closest('li, .form-line, .form-field, div');
+                if (container) {
+                    // Look for labels in container
+                    const labels = container.querySelectorAll('label');
+                    labels.forEach(label => {
+                        if (label.textContent && label.textContent.includes(person.name.substring(0, 8))) {
+                            if (checkbox.checked) {
+                                selectedPeople.push(person);
+                                selectedEmails.push(person.email);
+                                found = true;
+                                addDebug(`✓ ${person.name} selected`);
+                            }
+                        }
+                    });
                 }
             });
-        }
-        
-        checkboxes.push({
-            element: cb,
-            id: cb.id || `checkbox_${index}`,
-            name: cb.name,
-            label: label,
-            checked: cb.checked
-        });
-    });
-    
-    return checkboxes;
-}
-
-// Match people to checkboxes
-function matchPeopleToCheckboxes() {
-    const checkboxes = findCheckboxes();
-    const matched = [];
-    
-    PEOPLE.forEach((person, index) => {
-        let matchedCheckbox = null;
-        
-        // Try to find by label
-        checkboxes.forEach(cb => {
-            if (cb.label && person.name && cb.label.includes(person.name.substring(0, 5))) {
-                matchedCheckbox = cb;
-            }
-        });
-        
-        // If not found by label, try by order
-        if (!matchedCheckbox && checkboxes[index]) {
-            matchedCheckbox = checkboxes[index];
-        }
-        
-        matched.push({
-            ...person,
-            checkbox: matchedCheckbox,
-            checkboxIndex: index
-        });
-    });
-    
-    return matched;
-}
-
-// Update checklist display
-function updateChecklist() {
-    const matchedPeople = matchPeopleToCheckboxes();
-    const container = document.getElementById('checklist');
-    const debug = document.getElementById('debug');
-    
-    let html = '';
-    let selectedCount = 0;
-    let signedCount = 0;
-    const selectedEmails = [];
-    
-    matchedPeople.forEach(person => {
-        const isSelected = person.checkbox ? person.checkbox.element.checked : false;
-        const hasSignature = checkSignature(person.checkboxIndex);
-        
-        if (isSelected) {
-            selectedCount++;
-            selectedEmails.push(person.email);
             
-            if (hasSignature) {
-                signedCount++;
-                html += `<div class="item signed">✅ ${person.name} (${person.email})</div>`;
-            } else {
-                html += `<div class="item selected">⏳ ${person.name} (${person.email})</div>`;
+            // Method 2: If no match by label, try by index (last resort)
+            if (!found && index < checkboxes.length) {
+                if (checkboxes[index].checked) {
+                    selectedPeople.push(person);
+                    selectedEmails.push(person.email);
+                    addDebug(`✓ ${person.name} selected (by index)`);
+                }
             }
+        });
+        
+        addDebug(`Total selected: ${selectedPeople.length} people`);
+        return { selected: selectedPeople, emails: selectedEmails };
+        
+    } catch (error) {
+        addDebug(`ERROR: ${error.message}`);
+        return { selected: [], emails: [] };
+    }
+}
+
+// ===== UPDATE DISPLAY =====
+function updateDisplay() {
+    const result = checkParentJotForm();
+    const container = document.getElementById('checklist-container');
+    
+    if (result.selected.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div style="font-size: 24px; margin-bottom: 10px;">📋</div>
+                <div>Select names in the JotForm above</div>
+                <div style="font-size: 11px; margin-top: 5px; color: #95a5a6;">Check names like "Rowan Isaacs", "Mark Hair", etc.</div>
+            </div>
+        `;
+    } else {
+        let html = '';
+        result.selected.forEach(person => {
+            // Check if signed (we'll implement this later)
+            const isSigned = false; // TODO: Check signatures
+            
+            html += `
+                <div class="checklist-item ${isSigned ? 'signed' : 'selected'}">
+                    <div class="checkbox-icon">${isSigned ? '✓' : '⋯'}</div>
+                    <div class="name">
+                        ${person.name}
+                        <div class="email">${person.email}</div>
+                    </div>
+                    <div class="status">${isSigned ? 'SIGNED' : 'SELECTED'}</div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+    
+    // Update JotForm fields
+    updateJotFormFields(result.emails, result.selected.length);
+}
+
+// ===== UPDATE JOTFORM FIELDS =====
+function updateJotFormFields(emails, selectedCount) {
+    try {
+        // Update email field
+        const emailString = emails.join(', ');
+        
+        // Find email field in PARENT
+        let emailField = null;
+        if (window.parent && window.parent.document) {
+            emailField = window.parent.document.getElementById(EMAIL_FIELD_ID);
+            if (!emailField) {
+                // Try by name
+                emailField = window.parent.document.querySelector(`input[name*="selectedEmails"]`);
+            }
+        }
+        
+        if (emailField) {
+            emailField.value = emailString;
+            // Trigger change
+            const event = new Event('change', { bubbles: true });
+            emailField.dispatchEvent(event);
+            addDebug(`✓ Updated email field: ${emailString}`);
+        } else {
+            addDebug(`✗ Email field ${EMAIL_FIELD_ID} not found in parent`);
+        }
+        
+        // Update completion field (always "no" for now since we don't check signatures yet)
+        let completeField = null;
+        if (window.parent && window.parent.document) {
+            completeField = window.parent.document.getElementById(COMPLETE_FIELD_ID);
+            if (!completeField) {
+                completeField = window.parent.document.querySelector(`input[name*="signaturesComplete"]`);
+            }
+        }
+        
+        if (completeField) {
+            completeField.value = 'no';
+            const event = new Event('change', { bubbles: true });
+            completeField.dispatchEvent(event);
+        }
+        
+    } catch (error) {
+        addDebug(`ERROR updating fields: ${error.message}`);
+    }
+}
+
+// ===== TEST FUNCTIONS =====
+function forceCheck() {
+    addDebug('Manual check triggered');
+    updateDisplay();
+}
+
+function testEmailUpdate() {
+    addDebug('Testing email update...');
+    const testEmails = ['darcievaughan+rowan@gmail.com', 'darcievaughan+mark@gmail.com', 'darcievaughan+sam@gmail.com'];
+    updateJotFormFields(testEmails, 3);
+}
+
+// ===== INITIALIZE =====
+function initialize() {
+    addDebug('Widget initialized');
+    updateDisplay();
+    
+    // Check every second
+    setInterval(updateDisplay, 1000);
+    
+    // Also listen for messages from parent
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'updateChecklist') {
+            updateDisplay();
         }
     });
     
-    if (selectedCount === 0) {
-        html = '<div>No names selected. Check names in the form above.</div>';
+    // Send ready message to parent
+    if (window.parent) {
+        setTimeout(() => {
+            window.parent.postMessage({ type: 'checklistReady' }, '*');
+        }, 500);
     }
-    
-    container.innerHTML = html;
-    
-    // Update completion banner
-    const completeDiv = document.getElementById('complete');
-    if (selectedCount > 0 && selectedCount === signedCount) {
-        completeDiv.classList.add('show');
-        updateJotFormField(COMPLETE_FIELD_ID, 'yes');
-    } else {
-        completeDiv.classList.remove('show');
-        updateJotFormField(COMPLETE_FIELD_ID, 'no');
-    }
-    
-    // Update email field
-    if (selectedEmails.length > 0) {
-        updateJotFormField(EMAIL_FIELD_ID, selectedEmails.join(', '));
-    } else {
-        updateJotFormField(EMAIL_FIELD_ID, '');
-    }
-    
-    // Update debug info
-    debug.innerHTML = `
-        Found ${matchedPeople.length} people<br>
-        Selected: ${selectedCount}<br>
-        Signed: ${signedCount}<br>
-        Emails: ${selectedEmails.join(', ') || 'none'}<br>
-        Checkboxes found: ${matchedPeople.filter(p => p.checkbox).length}
-    `;
-}
-
-// Check if signature exists (simplified for now)
-function checkSignature(index) {
-    // Signature fields in JotForm are probably named differently
-    // We'll implement this later
-    return false;
-}
-
-// Update JotForm field
-function updateJotFormField(fieldId, value) {
-    try {
-        // Find field
-        let field = document.getElementById(fieldId);
-        if (!field) {
-            // Try to find by name
-            field = document.querySelector(`input[name*="${fieldId.replace('input_', '')}"]`);
-        }
-        
-        if (field) {
-            field.value = value;
-            // Trigger change event
-            const event = new Event('change', { bubbles: true });
-            field.dispatchEvent(event);
-            console.log(`Set ${fieldId} to: ${value}`);
-            return true;
-        } else {
-            console.log(`Field ${fieldId} not found`);
-            return false;
-        }
-    } catch (e) {
-        console.error('Error updating field:', e);
-        return false;
-    }
-}
-
-// Force update
-function forceUpdate() {
-    updateChecklist();
-}
-
-// Initialize
-function init() {
-    console.log('Signature Checklist initialized');
-    updateChecklist();
-    setInterval(updateChecklist, 2000);
 }
 
 // Start
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', initialize);
+
+// Make functions available globally for testing
+window.updateChecklist = updateDisplay;
 </script>
 </body>
 </html>
