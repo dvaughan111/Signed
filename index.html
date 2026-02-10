@@ -1,445 +1,151 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signature Checklist</title>
     <style>
         body { 
-            font-family: Arial, sans-serif; 
+            font-family: Arial; 
             padding: 15px; 
-            background: white; 
             margin: 0; 
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        h3 { 
-            color: #2c3e50; 
-            margin-bottom: 15px; 
-            padding-bottom: 10px; 
-            border-bottom: 2px solid #ecf0f1; 
-            font-size: 18px;
+            background: white;
         }
         .checklist-item {
-            background: #f8f9fa;
-            border: 2px solid #e9ecef;
-            border-radius: 6px;
-            padding: 10px 12px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            border-left: 3px solid #ddd;
         }
-        .checklist-item.selected {
-            background: #fff3e0;
-            border-color: #ff9800;
+        .selected {
+            border-left-color: orange;
+            background: #fff8e1;
         }
-        .checklist-item.signed {
-            background: #e8f5e9;
-            border-color: #4CAF50;
-        }
-        .checkbox-icon {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-            margin-right: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 12px;
-            flex-shrink: 0;
-        }
-        .selected .checkbox-icon {
-            background: #ff9800;
-            color: white;
-        }
-        .signed .checkbox-icon {
-            background: #4CAF50;
-            color: white;
-        }
-        .name {
-            flex: 1;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        .email {
-            font-size: 11px;
-            color: #666;
-            margin-top: 2px;
-        }
-        .status {
-            font-size: 10px;
-            font-weight: 600;
-            padding: 3px 8px;
-            border-radius: 10px;
-            text-transform: uppercase;
-            margin-left: 8px;
-            flex-shrink: 0;
-        }
-        .selected .status {
-            background: #ff9800;
-            color: white;
-        }
-        .signed .status {
-            background: #4CAF50;
-            color: white;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 20px;
-            color: #7f8c8d;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border: 2px dashed #e9ecef;
-            font-size: 14px;
-        }
-        .debug-panel {
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 12px;
-            margin-top: 15px;
-            font-size: 11px;
-            font-family: monospace;
-        }
-        .debug-title {
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #2c3e50;
-            font-size: 12px;
-        }
-        button {
+        .counter {
             background: #2196F3;
             color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            margin-top: 8px;
-            margin-right: 5px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 10px;
         }
-        button:hover {
-            background: #1976D2;
-        }
-        .loading {
-            color: #666;
-            font-style: italic;
-        }
-        .error {
-            color: #f44336;
-            font-weight: bold;
-        }
-        .success {
-            color: #4CAF50;
-            font-weight: bold;
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            background: #e8f5e9;
+            border: 1px solid #4CAF50;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h3>Signature Checklist</h3>
-        <div id="checklist-container">
-            <div class="empty-state loading" id="loading-state">
-                Loading checklist...<br>
-                <small>Select names in the form above</small>
-            </div>
-        </div>
-        
-        <div class="debug-panel">
-            <div class="debug-title">Debug Information</div>
-            <div id="debug-output">Initializing widget...</div>
-            <div style="margin-top: 10px;">
-                <button onclick="forceUpdate()">Force Update Now</button>
-                <button onclick="testWithSampleData()" style="background: #4CAF50;">Test with Sample Data</button>
-                <button onclick="showAllCheckboxes()" style="background: #9C27B0;">Show All Checkboxes</button>
-            </div>
-        </div>
-    </div>
-
-<script>
-// ===== CONFIGURATION =====
-const PEOPLE = [
-    { name: 'Rowan Isaacs', email: 'darcievaughan+rowan@gmail.com', signature: 'worker1' },
-    { name: 'Mark Hair', email: 'darcievaughan+mark@gmail.com', signature: 'worker2' },
-    { name: 'Sam Mitchell', email: 'darcievaughan+sam@gmail.com', signature: 'worker3' },
-    { name: 'Alex Mclean', email: 'darcievaughan+alex@gmail.com', signature: 'worker4' },
-    { name: 'Rai Samson', email: 'darcievaughan+rai@gmail.com', signature: 'worker5' },
-    { name: 'Darren Taylor', email: 'darcievaughan+darren@gmail.com', signature: 'worker6' },
-    { name: 'Ty Wilson', email: 'darcievaughan+ty@gmail.com', signature: 'worker7' },
-    { name: 'Kristian', email: 'darcievaughan+kristian@gmail.com', signature: 'worker8' },
-    { name: 'Graham Wickham', email: 'darcievaughan+graham@gmail.com', signature: 'worker9' },
-    { name: 'Mike Rono', email: 'darcievaughan+mike@gmail.com', signature: 'worker10' },
-    { name: 'Dale Roulston', email: 'darcievaughan+dale@gmail.com', signature: 'worker11' },
-    { name: 'John Clark', email: 'darcievaughan+john@gmail.com', signature: 'worker12' }
-];
-
-const EMAIL_FIELD_ID = 'input_363'; // Your email list field
-const COMPLETE_FIELD_ID = 'input_361'; // Your completion field
-
-let debugMessages = [];
-let updateInterval;
-
-// ===== DEBUG FUNCTIONS =====
-function addDebug(message, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    const log = `${timestamp}: ${message}`;
-    debugMessages.push({message: log, type});
-    if (debugMessages.length > 6) debugMessages.shift();
-    updateDebugDisplay();
-}
-
-function updateDebugDisplay() {
-    const output = document.getElementById('debug-output');
-    if (output) {
-        let html = '';
-        debugMessages.forEach(msg => {
-            const color = msg.type === 'error' ? 'error' : msg.type === 'success' ? 'success' : '';
-            html += `<div class="${color}">${msg.message}</div>`;
-        });
-        output.innerHTML = html;
-    }
-}
-
-// ===== SIMPLE CHECKBOX DETECTION =====
-function findSelectedPeople() {
-    try {
-        addDebug('Looking for selected checkboxes...');
-        
-        // We're in an iframe - try to access parent
-        if (!window.parent || !window.parent.document) {
-            addDebug('Cannot access parent window - running in iframe', 'error');
-            return { selected: [], emails: [] };
-        }
-        
-        const parentDoc = window.parent.document;
-        const selectedPeople = [];
-        const selectedEmails = [];
-        
-        // Get ALL checkboxes in parent
-        const allCheckboxes = parentDoc.querySelectorAll('input[type="checkbox"]');
-        addDebug(`Found ${allCheckboxes.length} total checkboxes in form`);
-        
-        if (allCheckboxes.length === 0) {
-            addDebug('No checkboxes found! Form may not be loaded yet', 'error');
-            return { selected: [], emails: [] };
-        }
-        
-        // Simple approach: Check first 12 checkboxes (assuming they're in order)
-        // This is a SIMPLIFIED approach that should work immediately
-        for (let i = 0; i < Math.min(12, allCheckboxes.length); i++) {
-            const checkbox = allCheckboxes[i];
-            if (checkbox.checked && PEOPLE[i]) {
-                selectedPeople.push(PEOPLE[i]);
-                selectedEmails.push(PEOPLE[i].email);
-                addDebug(`✓ ${PEOPLE[i].name} selected (checkbox ${i})`, 'success');
-            }
-        }
-        
-        addDebug(`Total selected: ${selectedPeople.length} people`, 'success');
-        return { selected: selectedPeople, emails: selectedEmails };
-        
-    } catch (error) {
-        addDebug(`Error: ${error.message}`, 'error');
-        return { selected: [], emails: [] };
-    }
-}
-
-// ===== UPDATE DISPLAY IMMEDIATELY =====
-function updateDisplay() {
-    addDebug('Updating display...');
+    <h4>Signature Checklist <span id="counter" class="counter">0</span></h4>
+    <div id="checklist">Select names in the form above</div>
+    <div id="status" class="status">✅ All signatures complete</div>
     
-    const result = findSelectedPeople();
-    const container = document.getElementById('checklist-container');
-    const loadingState = document.getElementById('loading-state');
-    
-    if (loadingState) {
-        loadingState.className = 'empty-state';
-    }
-    
-    if (result.selected.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <div style="margin-bottom: 8px;">📋</div>
-                <div>No names selected yet</div>
-                <small style="color: #95a5a6; font-size: 11px;">
-                    Check boxes next to names in the form above<br>
-                    The checklist will update automatically
-                </small>
-            </div>
-        `;
-    } else {
-        let html = '';
-        result.selected.forEach(person => {
-            // For now, just show as selected (not signed)
-            const isSigned = false;
-            
-            html += `
-                <div class="checklist-item ${isSigned ? 'signed' : 'selected'}">
-                    <div class="checkbox-icon">${isSigned ? '✓' : '⋯'}</div>
-                    <div class="name">
-                        ${person.name}
-                        <div class="email">${person.email}</div>
-                    </div>
-                    <div class="status">${isSigned ? 'SIGNED' : 'SELECTED'}</div>
-                </div>
-            `;
-        });
-        container.innerHTML = html;
-    }
-    
-    // Update JotForm fields IMMEDIATELY
-    updateJotFormFields(result.emails);
-    
-    // Show current count
-    const countDisplay = result.selected.length > 0 ? 
-        `Showing ${result.selected.length} selected names` : 
-        'No names selected';
-    addDebug(countDisplay, 'success');
-}
-
-// ===== UPDATE JOTFORM FIELDS =====
-function updateJotFormFields(emails) {
-    try {
-        const emailString = emails.join(', ');
-        
-        // Try to update parent fields
-        if (window.parent && window.parent.document) {
-            const parentDoc = window.parent.document;
-            
-            // Update email field
-            let emailField = parentDoc.getElementById(EMAIL_FIELD_ID);
-            if (emailField) {
-                emailField.value = emailString;
-                // Trigger events
-                ['change', 'input'].forEach(eventType => {
-                    const event = new Event(eventType, { bubbles: true });
-                    emailField.dispatchEvent(event);
-                });
-                addDebug(`✓ Email field updated: ${emailString}`, 'success');
-            } else {
-                addDebug(`Email field #${EMAIL_FIELD_ID} not found`, 'error');
-            }
-            
-            // Update completion field
-            let completeField = parentDoc.getElementById(COMPLETE_FIELD_ID);
-            if (completeField) {
-                completeField.value = 'no'; // Default to "no" for now
-                const event = new Event('change', { bubbles: true });
-                completeField.dispatchEvent(event);
-            }
-        }
-        
-    } catch (error) {
-        addDebug(`Error updating fields: ${error.message}`, 'error');
-    }
-}
-
-// ===== TEST FUNCTIONS =====
-function forceUpdate() {
-    addDebug('--- FORCE UPDATE TRIGGERED ---', 'success');
-    updateDisplay();
-}
-
-function testWithSampleData() {
-    addDebug('Testing with sample data...', 'success');
-    
-    // Simulate selecting first 3 people
-    const testEmails = [
-        'darcievaughan+rowan@gmail.com',
-        'darcievaughan+mark@gmail.com', 
-        'darcievaughan+sam@gmail.com'
+    <script>
+    // Your configuration
+    const people = [
+        { name: 'Rowan Isaacs', email: 'darcievaughan+rowan@gmail.com' },
+        { name: 'Mark Hair', email: 'darcievaughan+mark@gmail.com' },
+        { name: 'Sam Mitchell', email: 'darcievaughan+sam@gmail.com' },
+        { name: 'Alex Mclean', email: 'darcievaughan+alex@gmail.com' },
+        { name: 'Rai Samson', email: 'darcievaughan+rai@gmail.com' },
+        { name: 'Darren Taylor', email: 'darcievaughan+darren@gmail.com' },
+        { name: 'Ty Wilson', email: 'darcievaughan+ty@gmail.com' },
+        { name: 'Kristian', email: 'darcievaughan+kristian@gmail.com' },
+        { name: 'Graham Wickham', email: 'darcievaughan+graham@gmail.com' },
+        { name: 'Mike Rono', email: 'darcievaughan+mike@gmail.com' },
+        { name: 'Dale Roulston', email: 'darcievaughan+dale@gmail.com' },
+        { name: 'John Clark', email: 'darcievaughan+john@gmail.com' }
     ];
-    
-    const container = document.getElementById('checklist-container');
-    let html = '';
-    
-    PEOPLE.slice(0, 3).forEach(person => {
-        html += `
-            <div class="checklist-item selected">
-                <div class="checkbox-icon">⋯</div>
-                <div class="name">
-                    ${person.name}
-                    <div class="email">${person.email}</div>
-                </div>
-                <div class="status">SELECTED</div>
-            </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-    updateJotFormFields(testEmails);
-    addDebug('✓ Test data displayed (Rowan, Mark, Sam)', 'success');
-}
 
-function showAllCheckboxes() {
-    try {
-        if (window.parent && window.parent.document) {
-            const parentDoc = window.parent.document;
-            const checkboxes = parentDoc.querySelectorAll('input[type="checkbox"]');
+    // Simple function to check checkboxes
+    function checkSelectedNames() {
+        const selectedEmails = [];
+        let selectedCount = 0;
+        
+        // Try to find checkboxes - SIMPLE METHOD
+        for (let i = 0; i < 12; i++) {
+            // Try different checkbox IDs that JotForm might use
+            const possibleIds = [
+                `input_3_${i}`,      // Common JotForm pattern
+                `input_4_${i}`,
+                `input_5_${i}`,
+                `q3_${i}`,           // Another pattern
+                `q4_${i}`,
+                `${i}_1`,            // Yet another
+                `question3_${i}`
+            ];
             
-            let debugInfo = `Found ${checkboxes.length} checkboxes:\n`;
-            checkboxes.forEach((cb, i) => {
-                debugInfo += `[${i}] ID: ${cb.id || 'none'}, Name: ${cb.name || 'none'}, Checked: ${cb.checked}\n`;
-                
-                // Try to find label
-                const label = parentDoc.querySelector(`label[for="${cb.id}"]`);
-                if (label) {
-                    debugInfo += `     Label: ${label.textContent.substring(0, 30)}...\n`;
+            let isChecked = false;
+            
+            // Check each possible ID
+            for (const id of possibleIds) {
+                const checkbox = document.getElementById(id);
+                if (checkbox && checkbox.checked) {
+                    isChecked = true;
+                    break;
                 }
-            });
+            }
             
-            addDebug('All checkboxes in form:', 'info');
-            console.log(debugInfo); // Also log to console
-            alert(`Found ${checkboxes.length} checkboxes. Check browser console (F12) for details.`);
+            // If we found a checked checkbox for this position
+            if (isChecked && people[i]) {
+                selectedCount++;
+                selectedEmails.push(people[i].email);
+            }
         }
-    } catch (error) {
-        addDebug(`Error: ${error.message}`, 'error');
+        
+        return { selectedCount, selectedEmails };
     }
-}
 
-// ===== INITIALIZE AND START IMMEDIATELY =====
-function initialize() {
-    addDebug('Widget starting...', 'success');
-    
-    // Update immediately
-    updateDisplay();
-    
-    // Set up continuous updates (every 500ms)
-    updateInterval = setInterval(updateDisplay, 500);
-    
-    // Also update when window gets focus (user comes back to tab)
-    window.addEventListener('focus', updateDisplay);
-    
-    // Listen for messages from parent
-    window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'formUpdated') {
-            updateDisplay();
+    // Update the display
+    function updateDisplay() {
+        const result = checkSelectedNames();
+        const checklist = document.getElementById('checklist');
+        const counter = document.getElementById('counter');
+        const status = document.getElementById('status');
+        
+        counter.textContent = result.selectedCount;
+        
+        if (result.selectedCount === 0) {
+            checklist.innerHTML = 'Select names in the form above';
+        } else {
+            let html = '';
+            result.selectedEmails.forEach(email => {
+                // Extract name from email for display
+                const name = email.split('+')[1]?.split('@')[0] || 'Person';
+                html += `<div class="checklist-item selected">✓ ${name} (${email})</div>`;
+            });
+            checklist.innerHTML = html;
+            
+            // Show status if all selected
+            if (result.selectedCount > 0) {
+                status.style.display = 'block';
+            }
         }
-    });
-    
-    // Notify parent we're ready
-    setTimeout(() => {
-        if (window.parent) {
-            window.parent.postMessage({ type: 'checklistWidgetReady' }, '*');
+        
+        // Update JotForm field if we can find it
+        updateJotFormField(result.selectedEmails);
+    }
+
+    // Try to update JotForm field
+    function updateJotFormField(emails) {
+        try {
+            const emailString = emails.join(', ');
+            
+            // Try to find the email field
+            const field = document.getElementById('input_363');
+            if (field) {
+                field.value = emailString;
+                console.log('Updated email field:', emailString);
+            }
+        } catch (e) {
+            // Silently fail
         }
-    }, 1000);
-    
-    addDebug('Widget running and checking every 500ms', 'success');
-}
+    }
 
-// Start IMMEDIATELY when page loads
-document.addEventListener('DOMContentLoaded', initialize);
-
-// Clean up on unload
-window.addEventListener('beforeunload', () => {
-    if (updateInterval) clearInterval(updateInterval);
-});
-
-// Make available globally
-window.updateChecklist = updateDisplay;
-</script>
+    // Start checking immediately and keep checking
+    setInterval(updateDisplay, 1000);
+    updateDisplay(); // First update
+    </script>
 </body>
 </html>
