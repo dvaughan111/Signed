@@ -1,317 +1,175 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signature Tracker</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 10px; 
+            margin: 0; 
         }
-        .checklist-item {
-            margin: 10px 0;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            transition: all 0.3s ease;
+        .checklist-item { 
+            margin: 5px 0; 
+            padding: 8px; 
+            border-left: 4px solid #ddd; 
         }
-        .checklist-item.complete {
-            background-color: #e8f5e9;
-            border-color: #4CAF50;
-        }
-        .checklist-item.incomplete {
-            background-color: #fff3e0;
-            border-color: #ff9800;
-        }
-        .status-box {
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 6px;
-            text-align: center;
-            font-weight: bold;
-        }
-        .status-pending {
-            background-color: #e3f2fd;
-            border: 2px solid #2196F3;
-            color: #1565C0;
-        }
-        .status-complete {
-            background-color: #e8f5e9;
-            border: 2px solid #4CAF50;
-            color: #2E7D32;
-        }
-        h3 {
-            color: #333;
-            margin-bottom: 20px;
-        }
-        .complete-btn {
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 24px;
-            border: none;
+        .checklist-item.selected { border-left-color: #ff9800; }
+        .checklist-item.signed { border-left-color: #4CAF50; }
+        .complete-message { 
+            padding: 10px; 
+            background: #4CAF50; 
+            color: white; 
             border-radius: 4px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 15px;
+            margin-top: 10px;
             display: none;
-        }
-        .complete-btn:hover {
-            background-color: #45a049;
         }
     </style>
 </head>
 <body>
-    <h3>📋 Signature Checklist</h3>
-    <div id="checklist-container">
-        <!-- Checklist will appear here -->
+    <div id="checklist"></div>
+    <div id="completeMessage" class="complete-message">
+        ✅ ALL SIGNATURES COMPLETE - Approver notified
     </div>
+
+<script>
+// Your 12 names and their checkbox IDs
+const nameConfig = [
+    { id: 'input_280_0', name: 'Rowan Isaacs', sigId: 'worker1' },
+    { id: 'input_280_1', name: 'Mark Hair', sigId: 'worker2' },
+    { id: 'input_280_2', name: 'Sam Mitchell', sigId: 'worker3' },
+    { id: 'input_280_3', name: 'Alex Mclean', sigId: 'worker4' },
+    { id: 'input_280_4', name: 'Rai Samson', sigId: 'worker5' },
+    { id: 'input_280_5', name: 'Darren Taylor', sigId: 'worker6' },
+    { id: 'input_280_6', name: 'Ty Wilson', sigId: 'worker7' },
+    { id: 'input_280_7', name: 'Kristian', sigId: 'worker8' },
+    { id: 'input_280_8', name: 'Graham Wickham', sigId: 'worker9' },
+    { id: 'input_280_9', name: 'Mike Rono', sigId: 'worker10' },
+    { id: 'input_280_10', name: 'Dale Roulston', sigId: 'worker11' },
+    { id: 'input_280_11', name: 'John Clark', sigId: 'worker12' }
+];
+
+let checklistItems = [];
+let checkInterval;
+
+// Create checklist
+function createChecklist() {
+    const container = document.getElementById('checklist');
     
-    <div id="status" class="status-box status-pending">
-        Waiting for selections...
-    </div>
+    nameConfig.forEach(person => {
+        const item = document.createElement('div');
+        item.className = 'checklist-item';
+        item.id = `item_${person.id}`;
+        item.innerHTML = `☐ ${person.name}`;
+        container.appendChild(item);
+        
+        checklistItems.push({
+            element: item,
+            name: person.name,
+            checkboxId: person.id,
+            sigId: person.sigId,
+            selected: false,
+            signed: false
+        });
+    });
+}
+
+// Check status
+function checkStatus() {
+    let totalSelected = 0;
+    let totalSigned = 0;
+    let allComplete = false;
     
-    <button id="completeBtn" class="complete-btn" onclick="notifyComplete()">
-        ✅ ALL SIGNATURES COMPLETE - SUBMIT
-    </button>
-
-    <script>
-        // Configuration - UPDATE THESE to match your JotForm setup
-        const CONFIG = {
-            // How JotForm identifies selected names (update these to your actual field IDs)
-            nameFields: [
-                'name1', 'name2', 'name3', 'name4', 'name5',
-                'name6', 'name7', 'name8', 'name9', 'name10'
-            ],
-            
-            // The actual names that appear in your form
-            nameLabels: [
-                'John Smith',
-                'Mary Johnson', 
-                'Robert Brown',
-                'Lisa Davis',
-                'Michael Wilson',
-                'Sarah Miller',
-                'David Moore',
-                'Jennifer Taylor',
-                'Thomas Anderson',
-                'Emily Thomas'
-            ],
-            
-            // Your signature field IDs (update these)
-            signatureFields: [
-                'sig1', 'sig2', 'sig3', 'sig4', 'sig5',
-                'sig6', 'sig7', 'sig8', 'sig9', 'sig10'
-            ]
-        };
-
-        // Store checklist state
-        let checklistState = [];
-        let checkInterval;
-
-        // Initialize
-        function init() {
-            console.log('Signature Tracker Widget Loaded');
-            setupChecklist();
-            startMonitoring();
-        }
-
-        // Create checklist items
-        function setupChecklist() {
-            const container = document.getElementById('checklist-container');
-            container.innerHTML = '';
-            checklistState = [];
-
-            for (let i = 0; i < CONFIG.nameLabels.length; i++) {
-                const item = document.createElement('div');
-                item.className = 'checklist-item incomplete';
-                item.id = `checklist-item-${i}`;
-                item.innerHTML = `
-                    <input type="checkbox" id="check-${i}" disabled style="margin-right: 10px;">
-                    <label for="check-${i}" style="flex: 1; cursor: pointer;">
-                        <strong>${CONFIG.nameLabels[i]}</strong>
-                        <div style="font-size: 12px; color: #666; margin-top: 3px;">
-                            Status: <span id="status-${i}">Waiting for selection</span>
-                        </div>
-                    </label>
-                `;
-                container.appendChild(item);
-                
-                checklistState.push({
-                    name: CONFIG.nameLabels[i],
-                    nameField: CONFIG.nameFields[i],
-                    sigField: CONFIG.signatureFields[i],
-                    selected: false,
-                    signed: false,
-                    element: item,
-                    checkbox: item.querySelector(`#check-${i}`),
-                    statusSpan: item.querySelector(`#status-${i}`)
-                });
-            }
-        }
-
-        // Check JotForm for selections and signatures
-        function checkJotFormStatus() {
-            let anySelected = false;
-            let allComplete = true;
-            let completedCount = 0;
-            let totalSelected = 0;
-
-            checklistState.forEach((item, index) => {
-                // Check if name is selected in JotForm
-                const isSelected = checkIfSelected(item.nameField);
-                item.selected = isSelected;
-                
-                // Check if signature exists
-                const hasSignature = checkSignature(item.sigField);
-                item.signed = hasSignature;
-                
-                // Update UI
-                if (isSelected) {
-                    anySelected = true;
-                    totalSelected++;
-                    
-                    if (hasSignature) {
-                        item.element.className = 'checklist-item complete';
-                        item.checkbox.checked = true;
-                        item.statusSpan.textContent = '✓ Signed';
-                        item.statusSpan.style.color = '#4CAF50';
-                        completedCount++;
-                    } else {
-                        item.element.className = 'checklist-item incomplete';
-                        item.checkbox.checked = false;
-                        item.statusSpan.textContent = '⏳ Waiting for signature';
-                        item.statusSpan.style.color = '#ff9800';
-                        allComplete = false;
-                    }
-                    
-                    item.element.style.display = 'block';
-                } else {
-                    item.element.style.display = 'none';
-                }
-            });
-
-            // Update status display
-            updateStatusDisplay(anySelected, completedCount, totalSelected, allComplete);
-        }
-
-        // Check if a name is selected in JotForm
-        function checkIfSelected(fieldName) {
-            try {
-                // Try to access JotForm field
-                if (window.parent && window.parent.JFCustomWidget) {
-                    const value = window.parent.JFCustomWidget.getWidgetData();
-                    return value && value[fieldName] === true;
-                }
-                
-                // Alternative: Check for checkbox state
-                const checkbox = document.querySelector(`[name*="${fieldName}"]`);
-                return checkbox ? checkbox.checked : false;
-            } catch (e) {
-                console.log('Error checking selection:', e);
-                return false;
-            }
-        }
-
-        // Check if signature exists
-        function checkSignature(fieldName) {
-            try {
-                // Look for signature canvas
-                const canvas = document.querySelector(`[data-type="signature"][data-id*="${fieldName}"] canvas`);
-                if (!canvas) return false;
-                
-                // Check if canvas has been drawn on
-                const ctx = canvas.getContext('2d');
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-                
-                for (let i = 0; i < data.length; i += 4) {
-                    if (data[i + 3] > 0) { // Check alpha channel
-                        return true;
+    checklistItems.forEach(item => {
+        // Check if selected
+        const checkbox = document.getElementById(item.checkboxId);
+        const isSelected = checkbox ? checkbox.checked : false;
+        
+        // Check if signed
+        let isSigned = false;
+        try {
+            const sigField = document.getElementById(item.sigId);
+            if (sigField) {
+                const canvas = sigField.querySelector('canvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    for (let i = 3; i < data.length; i += 4) {
+                        if (data[i] > 0) {
+                            isSigned = true;
+                            break;
+                        }
                     }
                 }
-                return false;
-            } catch (e) {
-                console.log('Error checking signature:', e);
-                return false;
             }
-        }
-
-        // Update the status display
-        function updateStatusDisplay(anySelected, completed, total, allComplete) {
-            const statusDiv = document.getElementById('status');
-            const completeBtn = document.getElementById('completeBtn');
+        } catch(e) {}
+        
+        // Update UI
+        item.selected = isSelected;
+        item.signed = isSigned;
+        
+        if (isSelected) {
+            item.element.className = 'checklist-item selected';
+            totalSelected++;
             
-            if (!anySelected) {
-                statusDiv.className = 'status-box status-pending';
-                statusDiv.innerHTML = 'No names selected yet. Select names in the form above.';
-                completeBtn.style.display = 'none';
-                return;
-            }
-            
-            if (allComplete && total > 0) {
-                statusDiv.className = 'status-box status-complete';
-                statusDiv.innerHTML = `✅ ALL SIGNATURES COMPLETE!<br>
-                                      <small>${completed} of ${total} signatures ready</small>`;
-                completeBtn.style.display = 'block';
-                
-                // Auto-trigger after 2 seconds
-                setTimeout(() => {
-                    notifyComplete();
-                }, 2000);
+            if (isSigned) {
+                item.element.className = 'checklist-item signed';
+                item.element.innerHTML = `✅ ${item.name}`;
+                totalSigned++;
             } else {
-                statusDiv.className = 'status-box status-pending';
-                statusDiv.innerHTML = `Progress: ${completed} of ${total} signatures complete<br>
-                                      <small>Waiting for ${total - completed} more signature(s)...</small>`;
-                completeBtn.style.display = 'none';
+                item.element.innerHTML = `⏳ ${item.name}`;
             }
+        } else {
+            item.element.className = 'checklist-item';
+            item.element.innerHTML = `☐ ${item.name}`;
         }
+    });
+    
+    // Check if all selected are signed
+    if (totalSelected > 0 && totalSelected === totalSigned) {
+        allComplete = true;
+    }
+    
+    // Show complete message
+    const message = document.getElementById('completeMessage');
+    if (allComplete) {
+        message.style.display = 'block';
+        
+        // Trigger JotForm email
+        triggerApprovalEmail();
+    } else {
+        message.style.display = 'none';
+    }
+}
 
-        // Notify JotForm that everything is complete
-        function notifyComplete() {
-            console.log('All signatures complete - notifying JotForm');
-            
-            // Send message to parent (JotForm)
-            if (window.parent) {
-                window.parent.postMessage({
-                    type: 'SIGNATURES_COMPLETE',
-                    action: 'trigger_approval_email'
-                }, '*');
-            }
-            
-            // Update button
-            const btn = document.getElementById('completeBtn');
-            btn.textContent = '✅ NOTIFICATION SENT TO APPROVER';
-            btn.style.backgroundColor = '#2196F3';
-            btn.disabled = true;
-            
-            // Update status
-            document.getElementById('status').innerHTML = 
-                '✅ Approval email has been triggered!<br><small>The approver will be notified immediately.</small>';
+// Trigger email in JotForm
+function triggerApprovalEmail() {
+    // Create hidden field that JotForm can detect
+    try {
+        const hiddenField = document.createElement('input');
+        hiddenField.type = 'hidden';
+        hiddenField.name = 'signatures_complete';
+        hiddenField.value = 'true';
+        document.body.appendChild(hiddenField);
+        
+        // Send message to parent (JotForm)
+        if (window.parent) {
+            window.parent.postMessage({
+                action: 'signaturesComplete',
+                complete: true
+            }, '*');
         }
+    } catch(e) {}
+}
 
-        // Start monitoring JotForm
-        function startMonitoring() {
-            checkJotFormStatus();
-            checkInterval = setInterval(checkJotFormStatus, 1000); // Check every second
-        }
+// Start checking
+createChecklist();
+checkInterval = setInterval(checkStatus, 1000);
 
-        // Stop monitoring
-        function stopMonitoring() {
-            if (checkInterval) {
-                clearInterval(checkInterval);
-            }
-        }
-
-        // Clean up on page unload
-        window.addEventListener('beforeunload', stopMonitoring);
-
-        // Initialize when page loads
-        window.addEventListener('DOMContentLoaded', init);
-    </script>
+// Cleanup
+window.addEventListener('beforeunload', () => {
+    if (checkInterval) clearInterval(checkInterval);
+});
+</script>
 </body>
 </html>
